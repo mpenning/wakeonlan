@@ -48,25 +48,31 @@ class WOL(object):
         self.wol_payload = self.build_wol_payload(mac_str=target_mac)
 
     def build_wol_payload(self, mac_str=""):
-        # WOL PAYLOAD: FFFFFFFFFFFF + 16 repetitions of the computer mac
+        ## WOL PAYLOAD: FFFFFFFFFFFF + 16 repetitions of the computer mac
+
+        # Pack the broadcast address in network byte order
         bcast_str = self.ETH_BROADCAST
         bcast_bin_list = [pack("!B", int(ii, 16)) for ii in bcast_str.split(':')]
         bcast_packed = b''.join(bcast_bin_list)
+
+        # Pack the mac-address in network byte order
         mac_bin_list = [pack("!B", int(ii, 16)) for ii in mac_str.split(':')]
-        mac_packed = 16*b''.join(mac_bin_list)
-        payload = b''.join([bcast_packed, mac_packed])
+        mac_packed = b''.join(mac_bin_list)
+
+        # Build the payload
+        payload = b''.join([bcast_packed, 16*mac_packed])
         return payload
 
     def raw(self):
-        # Ethertype 0x0842
-        return sendp([Ether(type=int('0842', 16), dst='ff:ff:ff:ff:ff:ff') / Raw(load=self.wol_payload)], iface=self.intf)
+        # Ethertype 0x0842 + WOL Payload
+        return sendp([Ether(type=int('0842', 16), dst=self.ETH_BROADCAST) / Raw(load=self.wol_payload)], iface=self.intf)
 
     def udp4(self):
-        # UDP port 9
+        # UDP port 9 + WOL Payload
         return sendp([Ether(dst=self.ETH_BROADCAST) / IP(dst='255.255.255.255') / UDP(sport=32767, dport=9)/ Raw(load=self.wol_payload)], iface=self.intf)
 
     def udp6(self):
-        # UDP port 9
+        # UDP port 9 + WOL Payload
         return sendp([Ether() / IPv6(dst='ff02::1') / UDP(sport=32767, dport=9)/ Raw(load=self.wol_payload)], iface=self.intf)
 
 if __name__=="__main__":
